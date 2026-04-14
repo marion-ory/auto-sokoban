@@ -17,6 +17,17 @@ BTN_HOVER_COLOR   = (139, 90, 43)
 BTN_TEXT_COLOR    = (255, 240, 200)
 UI_BG_COLOR       = (62, 45, 25)
 
+MENU_BG_COLOR     = (80, 120, 50)
+MENU_TITLE_COLOR  = (255, 240, 180)
+MENU_SHADOW_COLOR = (40, 30, 10)
+
+MENU_WIDTH  = 7 * 64
+MENU_HEIGHT = 7 * 64 + 60
+
+# États du jeu
+STATE_MENU    = "menu"
+STATE_PLAYING = "playing"
+
 # Positions des sprites dans les spritesheets (fichier, x, y)
 SPRITE_FLOOR     = ("assets/tileset_farm.png",  0,   0)
 SPRITE_WALL      = ("assets/tileset_farm.png",  64,  16)

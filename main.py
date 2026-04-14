@@ -55,13 +55,14 @@ def is_won(grid):
             return False
     return True
 
-def main():
-    grid      = [row[:] for row in test_grid]
-    direction = DOWN
-    history   = []
-    moves     = 0
+def reset_game():
+    return [row[:] for row in test_grid], DOWN, [], 0
 
-    surface, sprites, font, buttons = display_game.init_display(grid)
+def main():
+    grid, direction, history, moves = reset_game()
+    state = STATE_MENU
+
+    surface, sprites, font, font_title, buttons = display_game.init_display(grid)
     clock   = pygame.time.Clock()
     running = True
 
@@ -72,53 +73,68 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            elif event.type == pygame.KEYDOWN:
-                new_grid = grid
-                if event.key == pygame.K_DOWN:
-                    direction = DOWN
-                    new_grid = move_player(grid, 1, 0)
-                elif event.key == pygame.K_UP:
-                    direction = UP
-                    new_grid = move_player(grid, -1, 0)
-                elif event.key == pygame.K_LEFT:
-                    direction = LEFT
-                    new_grid = move_player(grid, 0, -1)
-                elif event.key == pygame.K_RIGHT:
-                    direction = RIGHT
-                    new_grid = move_player(grid, 0, 1)
-                elif event.key == pygame.K_z:
-                    if history:
+            elif state == STATE_MENU:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    menu_buttons = display_game.draw_menu(surface, font_title, font, mouse_pos)
+                    if menu_buttons["play"].collidepoint(mouse_pos):
+                        grid, direction, history, moves = reset_game()
+                        state = STATE_PLAYING
+                    elif menu_buttons["quit"].collidepoint(mouse_pos):
+                        running = False
+
+            elif state == STATE_PLAYING:
+                if event.type == pygame.KEYDOWN:
+                    new_grid = grid
+                    if event.key == pygame.K_DOWN:
+                        direction = DOWN
+                        new_grid = move_player(grid, 1, 0)
+                    elif event.key == pygame.K_UP:
+                        direction = UP
+                        new_grid = move_player(grid, -1, 0)
+                    elif event.key == pygame.K_LEFT:
+                        direction = LEFT
+                        new_grid = move_player(grid, 0, -1)
+                    elif event.key == pygame.K_RIGHT:
+                        direction = RIGHT
+                        new_grid = move_player(grid, 0, 1)
+                    elif event.key == pygame.K_z:
+                        if history:
+                            grid, direction, moves = history.pop()
+                        continue
+                    elif event.key == pygame.K_r:
+                        grid, direction, history, moves = reset_game()
+                        continue
+                    elif event.key == pygame.K_ESCAPE:
+                        state = STATE_MENU
+                        continue
+
+                    if new_grid is not grid:
+                        history.append(([row[:] for row in grid], direction, moves))
+                        grid  = new_grid
+                        moves += 1
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if buttons["undo"].collidepoint(mouse_pos) and history:
                         grid, direction, moves = history.pop()
-                    continue
-                elif event.key == pygame.K_r:
-                    history.clear()
-                    grid      = [row[:] for row in test_grid]
-                    direction = DOWN
-                    moves     = 0
-                    continue
+                    elif buttons["reset"].collidepoint(mouse_pos):
+                        grid, direction, history, moves = reset_game()
+                    elif buttons["quit"].collidepoint(mouse_pos):
+                        state = STATE_MENU
 
-                if new_grid is not grid:
-                    history.append(([row[:] for row in grid], direction, moves))
-                    grid  = new_grid
-                    moves += 1
+        if state == STATE_MENU:
+            display_game.draw_menu(surface, font_title, font, mouse_pos)
 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if buttons["undo"].collidepoint(mouse_pos) and history:
-                    grid, direction, moves = history.pop()
-                elif buttons["reset"].collidepoint(mouse_pos):
-                    history.clear()
-                    grid      = [row[:] for row in test_grid]
-                    direction = DOWN
-                    moves     = 0
+        elif state == STATE_PLAYING:
+            display_game.draw_grid(surface, grid, sprites, direction)
+            display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
 
-        display_game.draw_grid(surface, grid, sprites, direction)
-        display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
-
-        if is_won(grid):
-            win_text = font.render("Bravo ! Puzzle résolu !", True, (255, 220, 50))
-            wx = (surface.get_width() - win_text.get_width()) // 2
-            wy = (surface.get_height() - win_text.get_height()) // 2
-            surface.blit(win_text, (wx, wy))
+            if is_won(grid):
+                win_text = font_title.render("Bravo !", True, (255, 220, 50))
+                sub_text = font.render(f"Résolu en {moves} coups", True, (255, 240, 200))
+                wx = (surface.get_width() - win_text.get_width()) // 2
+                wy = (surface.get_height() - win_text.get_height()) // 2
+                surface.blit(win_text, (wx, wy))
+                surface.blit(sub_text, ((surface.get_width() - sub_text.get_width()) // 2, wy + win_text.get_height() + 5))
 
         pygame.display.flip()
         clock.tick(60)
