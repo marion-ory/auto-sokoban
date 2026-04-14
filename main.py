@@ -80,10 +80,11 @@ def main():
     select_page = 0
     select_diff = "Tous"
 
-    # Variables du solver : solution = liste de directions à rejouer
+    # Variables du solver
     solving         = False
     solution        = []
     last_solve_time = 0
+    solver_algo     = "A*"  # algorithme sélectionné : "DFS", "BFS" ou "A*"
 
     game_surface, display_surface, scale, sprites, font, font_title, buttons = display_game.init_display(grid)
     clock   = pygame.time.Clock()
@@ -189,12 +190,15 @@ def main():
                         solving, solution = cancel_solve(solving, solution)
                         game_surface, display_surface, scale = display_game.resize_to_menu()
                         state = STATE_SELECT
+                    elif buttons["algo"].collidepoint(mouse_pos):
+                        # Cycle entre les algorithmes disponibles
+                        idx         = build_game.ALGOS.index(solver_algo)
+                        solver_algo = build_game.ALGOS[(idx + 1) % len(build_game.ALGOS)]
                     elif buttons["solve"].collidepoint(mouse_pos):
                         if solving:
-                            # Stoppe l'animation en cours
                             solving, solution = cancel_solve(solving, solution)
                         else:
-                            result = build_game.solve(grid)
+                            result = build_game.solve(grid, solver_algo)
                             if result:
                                 solution        = result
                                 solving         = True
@@ -230,7 +234,7 @@ def main():
                         solving = False
 
             display_game.draw_grid(game_surface, grid, sprites, direction)
-            display_game.draw_ui(game_surface, font, buttons, mouse_pos, moves, solving)
+            display_game.draw_ui(game_surface, font, buttons, mouse_pos, moves, solving, solver_algo)
 
             if is_won(grid):
                 # Superposer un voile sombre semi-transparent

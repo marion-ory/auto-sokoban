@@ -92,7 +92,7 @@ def draw_button(surface, rect, text, font, hovered=False):
     ly = rect.y + (rect.height - label.get_height()) // 2
     surface.blit(label, (lx, ly))
 
-def draw_ui(surface, font, buttons, mouse_pos, moves, solving=False):
+def draw_ui(surface, font, buttons, mouse_pos, moves, solving=False, solver_algo="A*"):
     # Barre du bas : compteur de coups + boutons d'action
     win_width = surface.get_width()
     grid_height = surface.get_height() - UI_BAR_HEIGHT
@@ -102,22 +102,25 @@ def draw_ui(surface, font, buttons, mouse_pos, moves, solving=False):
     moves_text = font.render(f"Coups : {moves}", True, BTN_TEXT_COLOR)
     surface.blit(moves_text, (12, grid_height + (UI_BAR_HEIGHT - moves_text.get_height()) // 2))
 
-    # Le bouton "Résoudre" devient "Stop" quand l'animation tourne
+    # Le bouton algo affiche l'algorithme sélectionné ; "Résoudre" devient "Stop" pendant l'animation
     labels = {"quit": "Quitter", "undo": "Annuler", "reset": "Reset",
-              "solve": "Stop" if solving else "Résoudre"}
+              "algo": solver_algo, "solve": "Stop" if solving else "Résoudre"}
     for name, rect in buttons.items():
         draw_button(surface, rect, labels[name], font, rect.collidepoint(mouse_pos))
 
 def make_buttons(win_width, grid_height):
-    # Calcule les positions des 4 boutons alignés à droite de la barre UI
+    # Calcule les positions des 5 boutons alignés à droite de la barre UI
     btn_w, btn_h = 90, 34
+    algo_w = 65
     margin = 8
     y = grid_height + (UI_BAR_HEIGHT - btn_h) // 2
-    quit_rect  = pygame.Rect(win_width - 4 * (btn_w + margin), y, btn_w, btn_h)
-    undo_rect  = pygame.Rect(win_width - 3 * (btn_w + margin), y, btn_w, btn_h)
-    reset_rect = pygame.Rect(win_width - 2 * (btn_w + margin), y, btn_w, btn_h)
-    solve_rect = pygame.Rect(win_width - (btn_w + margin),     y, btn_w, btn_h)
-    return {"quit": quit_rect, "undo": undo_rect, "reset": reset_rect, "solve": solve_rect}
+    quit_rect  = pygame.Rect(win_width - 3*btn_w - algo_w - 4*margin, y, btn_w,  btn_h)
+    undo_rect  = pygame.Rect(win_width - 2*btn_w - algo_w - 3*margin, y, btn_w,  btn_h)
+    reset_rect = pygame.Rect(win_width - btn_w   - algo_w - 2*margin, y, btn_w,  btn_h)
+    algo_rect  = pygame.Rect(win_width - btn_w   - algo_w - margin,   y, algo_w, btn_h)
+    solve_rect = pygame.Rect(win_width - btn_w              - margin,  y, btn_w,  btn_h)
+    return {"quit": quit_rect, "undo": undo_rect, "reset": reset_rect,
+            "algo": algo_rect, "solve": solve_rect}
 
 # ─── Écrans menu et sélection ─────────────────────────────────────────────────
 
@@ -243,7 +246,7 @@ def draw_menu(surface, font_title, font_btn, mouse_pos):
 
 # ─── Gestion de la fenêtre ────────────────────────────────────────────────────
 
-MIN_GAME_WIDTH = 4 * (90 + 8) + 160  # largeur minimale pour que la barre UI tienne (4 boutons + texte)
+MIN_GAME_WIDTH = 3 * (90 + 8) + (65 + 8) + 90 + 8 + 160  # 3 btns + algo + solve + texte "Coups"
 
 def resize_display(grid):
     # Calcule la surface interne (pleine résolution) et la fenêtre d'affichage (réduite si nécessaire).
