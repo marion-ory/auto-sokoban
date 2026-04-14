@@ -1,9 +1,19 @@
 import pygame
 import importlib
-# display-game.py contient un tiret, impossible à importer directement
+# Les fichiers avec tirets ne peuvent pas être importés directement
 display_game = importlib.import_module("display-game")
+build_game   = importlib.import_module("build-game")
 from constants import *
 from levels import get_level, level_count, LEVELS
+
+# Mapping direction → (dr, dc) pour rejouer les coups du solver
+MOVE_MAP = {
+    UP:    (-1,  0),
+    DOWN:  ( 1,  0),
+    LEFT:  ( 0, -1),
+    RIGHT: ( 0,  1),
+}
+SOLVE_DELAY = 300  # millisecondes entre chaque coup animé
 
 def find_player(grid):
     # Parcourt la grille et retourne les coordonnées (ligne, colonne) du joueur
@@ -57,6 +67,10 @@ def load_level(index):
     grid, name, difficulty = get_level(index)
     return grid, name, difficulty, DOWN, [], 0  # grille, nom, diff, direction, historique, coups
 
+def cancel_solve(solving, solution):
+    # Annule l'animation en cours du solver
+    return False, []
+
 def main():
     current_level = 0
     grid, level_name, difficulty, direction, history, moves = load_level(current_level)
@@ -65,6 +79,11 @@ def main():
     state       = STATE_MENU
     select_page = 0
     select_diff = "Tous"
+
+    # Variables du solver : solution = liste de directions à rejouer
+    solving         = False
+    solution        = []
+    last_solve_time = 0
 
     surface, sprites, font, font_title, buttons = display_game.init_display(grid)
     clock   = pygame.time.Clock()
@@ -120,6 +139,11 @@ def main():
 
             elif state == STATE_PLAYING:
                 if event.type == pygame.KEYDOWN:
+                    # Toute touche annule l'animation du solver
+                    if solving:
+                        solving, solution = cancel_solve(solving, solution)
+                        continue
+
                     new_grid = grid
                     if event.key == pygame.K_DOWN:
                         direction = DOWN
@@ -154,12 +178,25 @@ def main():
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if buttons["undo"].collidepoint(mouse_pos) and history:
+                        solving, solution = cancel_solve(solving, solution)
                         grid, direction, moves = history.pop()
                     elif buttons["reset"].collidepoint(mouse_pos):
+                        solving, solution = cancel_solve(solving, solution)
                         grid, level_name, difficulty, direction, history, moves = load_level(current_level)
                     elif buttons["quit"].collidepoint(mouse_pos):
+                        solving, solution = cancel_solve(solving, solution)
                         surface = display_game.resize_to_menu(surface)
                         state = STATE_SELECT
+                    elif buttons["solve"].collidepoint(mouse_pos):
+                        if solving:
+                            # Stoppe l'animation en cours
+                            solving, solution = cancel_solve(solving, solution)
+                        else:
+                            result = build_game.solve(grid)
+                            if result:
+                                solution        = result
+                                solving         = True
+                                last_solve_time = pygame.time.get_ticks()
 
         # ── Rendu selon l'état courant ──
         if state == STATE_MENU:
@@ -172,8 +209,26 @@ def main():
             )
 
         elif state == STATE_PLAYING:
+            # ── Animation du solver : applique un coup toutes les SOLVE_DELAY ms ──
+            if solving:
+                now = pygame.time.get_ticks()
+                if now - last_solve_time >= SOLVE_DELAY:
+                    if solution:
+                        move_dir        = solution.pop(0)
+                        dr, dc          = MOVE_MAP[move_dir]
+                        new_grid        = move_player(grid, dr, dc)
+                        if new_grid is not grid:
+                            history.append(([row[:] for row in grid], direction, moves))
+                            grid      = new_grid
+                            direction = move_dir
+                            moves    += 1
+                        last_solve_time = now
+                    else:
+                        # Plus de coups à jouer : animation terminée
+                        solving = False
+
             display_game.draw_grid(surface, grid, sprites, direction)
-            display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
+            display_game.draw_ui(surface, font, buttons, mouse_pos, moves, solving)
 
             if is_won(grid):
                 # Superposer un voile sombre semi-transparent
