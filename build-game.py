@@ -1,5 +1,4 @@
 from constants import *
-from collections import deque
 import heapq
 
 # ─── Fonctions de jeu (dupliquées ici pour éviter l'import circulaire avec main.py) ──
@@ -79,26 +78,9 @@ def solve_dfs(initial_grid):
     return None
 
 # ─── BFS (Breadth-First Search) ───────────────────────────────────────────────
-# Explore niveau par niveau : garantit la solution en nombre de coups minimal.
-# Plus lent que A* sur les grands niveaux.
+# TODO : à implémenter par le troisième coéquipier
 
 def solve_bfs(initial_grid):
-    queue   = deque([(initial_grid, [])])
-    visited = {grid_to_state(initial_grid)}
-
-    while queue:
-        if len(visited) > MAX_STATES:
-            return None
-        current_grid, path = queue.popleft()
-        if is_won(current_grid):
-            return path
-        for name, dr, dc in DIRECTIONS:
-            new_grid = move_player(current_grid, dr, dc)
-            if new_grid is not current_grid:
-                state = grid_to_state(new_grid)
-                if state not in visited:
-                    visited.add(state)
-                    queue.append((new_grid, path + [name]))
     return None
 
 # ─── A* ───────────────────────────────────────────────────────────────────────
