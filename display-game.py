@@ -1,6 +1,10 @@
 import pygame
 from constants import *
 
+# Résolution max disponible — initialisée dans init_display avant le premier set_mode
+_max_w = None
+_max_h = None
+
 # ─── Sprites ─────────────────────────────────────────────────────────────────
 
 def load_sprite(filepath, x, y):
@@ -242,27 +246,39 @@ def draw_menu(surface, font_title, font_btn, mouse_pos):
 MIN_GAME_WIDTH = 4 * (90 + 8) + 160  # largeur minimale pour que la barre UI tienne (4 boutons + texte)
 
 def resize_display(grid):
-    # Redimensionne la fenêtre selon la taille de la grille courante
+    # Calcule la surface interne (pleine résolution) et la fenêtre d'affichage (réduite si nécessaire).
+    # Le scale est le rapport fenêtre / surface interne.
     rows = len(grid)
     cols = len(grid[0])
-    width  = max(cols * CELL_SIZE, MIN_GAME_WIDTH)
-    height = rows * CELL_SIZE + UI_BAR_HEIGHT
-    surface = pygame.display.set_mode((width, height))
-    buttons = make_buttons(width, rows * CELL_SIZE)
-    return surface, buttons
+    ideal_w = max(cols * CELL_SIZE, MIN_GAME_WIDTH)
+    ideal_h = rows * CELL_SIZE + UI_BAR_HEIGHT
 
-def resize_to_menu(surface):
-    # Revient aux dimensions fixes du menu si nécessaire
-    if surface.get_width() != MENU_WIDTH or surface.get_height() != MENU_HEIGHT:
-        return pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
-    return surface
+    # Réduction si la grille dépasse l'écran disponible
+    scale   = min(_max_w / ideal_w, _max_h / ideal_h, 1.0)
+    disp_w  = max(int(ideal_w * scale), 1)
+    disp_h  = max(int(ideal_h * scale), 1)
+
+    game_surf    = pygame.Surface((ideal_w, ideal_h))
+    display_surf = pygame.display.set_mode((disp_w, disp_h))
+    buttons      = make_buttons(ideal_w, rows * CELL_SIZE)
+    return game_surf, display_surf, scale, buttons
+
+def resize_to_menu():
+    # Revient aux dimensions fixes du menu (pas de scaling nécessaire)
+    game_surf    = pygame.Surface((MENU_WIDTH, MENU_HEIGHT))
+    display_surf = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
+    return game_surf, display_surf, 1.0
 
 def init_display(grid):
-    # Initialise Pygame, crée la fenêtre, charge les sprites et les polices
+    global _max_w, _max_h
     pygame.init()
+    # Récupère la résolution de l'écran AVANT le premier set_mode
+    info   = pygame.display.Info()
+    _max_w = info.current_w - 40   # marge latérale
+    _max_h = info.current_h - 80   # marge pour la barre système
     pygame.display.set_caption(WINDOW_TITLE)
-    surface, buttons = resize_display(grid)
+    game_surf, display_surf, scale, buttons = resize_display(grid)
     sprites    = load_sprites()
     font       = pygame.font.SysFont("Arial", 18, bold=True)
     font_title = pygame.font.SysFont("Arial", 52, bold=True)
-    return surface, sprites, font, font_title, buttons
+    return game_surf, display_surf, scale, sprites, font, font_title, buttons

@@ -85,12 +85,14 @@ def main():
     solution        = []
     last_solve_time = 0
 
-    surface, sprites, font, font_title, buttons = display_game.init_display(grid)
+    game_surface, display_surface, scale, sprites, font, font_title, buttons = display_game.init_display(grid)
     clock   = pygame.time.Clock()
     running = True
 
     while running:
-        mouse_pos = pygame.mouse.get_pos()
+        # Convertit la position souris en coordonnées de la surface interne (avant scaling)
+        raw = pygame.mouse.get_pos()
+        mouse_pos = (int(raw[0] / scale), int(raw[1] / scale))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -98,9 +100,9 @@ def main():
 
             elif state == STATE_MENU:
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    menu_btns = display_game.draw_menu(surface, font_title, font, mouse_pos)
+                    menu_btns = display_game.draw_menu(game_surface, font_title, font, mouse_pos)
                     if menu_btns["play"].collidepoint(mouse_pos):
-                        surface = display_game.resize_to_menu(surface)
+                        game_surface, display_surface, scale = display_game.resize_to_menu()
                         state = STATE_SELECT
                     elif menu_btns["quit"].collidepoint(mouse_pos):
                         running = False
@@ -108,7 +110,7 @@ def main():
             elif state == STATE_SELECT:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     sel_btns = display_game.draw_level_select(
-                        surface, font_title, font, mouse_pos,
+                        game_surface, font_title, font, mouse_pos,
                         LEVELS, select_page, select_diff
                     )
 
@@ -126,7 +128,7 @@ def main():
                             if rect.collidepoint(mouse_pos):
                                 current_level = real_idx
                                 grid, level_name, difficulty, direction, history, moves = load_level(current_level)
-                                surface, buttons = display_game.resize_display(grid)
+                                game_surface, display_surface, scale, buttons = display_game.resize_display(grid)
                                 state = STATE_PLAYING
 
                     if "prev" in sel_btns and sel_btns["prev"].collidepoint(mouse_pos):
@@ -134,7 +136,7 @@ def main():
                     if "next" in sel_btns and sel_btns["next"].collidepoint(mouse_pos):
                         select_page += 1
                     if "back" in sel_btns and sel_btns["back"].collidepoint(mouse_pos):
-                        surface = display_game.resize_to_menu(surface)
+                        game_surface, display_surface, scale = display_game.resize_to_menu()
                         state = STATE_MENU
 
             elif state == STATE_PLAYING:
@@ -166,7 +168,7 @@ def main():
                         grid, level_name, difficulty, direction, history, moves = load_level(current_level)
                         continue
                     elif event.key == pygame.K_ESCAPE:
-                        surface = display_game.resize_to_menu(surface)
+                        game_surface, display_surface, scale = display_game.resize_to_menu()
                         state = STATE_SELECT
                         continue
 
@@ -185,7 +187,7 @@ def main():
                         grid, level_name, difficulty, direction, history, moves = load_level(current_level)
                     elif buttons["quit"].collidepoint(mouse_pos):
                         solving, solution = cancel_solve(solving, solution)
-                        surface = display_game.resize_to_menu(surface)
+                        game_surface, display_surface, scale = display_game.resize_to_menu()
                         state = STATE_SELECT
                     elif buttons["solve"].collidepoint(mouse_pos):
                         if solving:
@@ -200,11 +202,11 @@ def main():
 
         # ── Rendu selon l'état courant ──
         if state == STATE_MENU:
-            display_game.draw_menu(surface, font_title, font, mouse_pos)
+            display_game.draw_menu(game_surface, font_title, font, mouse_pos)
 
         elif state == STATE_SELECT:
             display_game.draw_level_select(
-                surface, font_title, font, mouse_pos,
+                game_surface, font_title, font, mouse_pos,
                 LEVELS, select_page, select_diff
             )
 
@@ -227,23 +229,23 @@ def main():
                         # Plus de coups à jouer : animation terminée
                         solving = False
 
-            display_game.draw_grid(surface, grid, sprites, direction)
-            display_game.draw_ui(surface, font, buttons, mouse_pos, moves, solving)
+            display_game.draw_grid(game_surface, grid, sprites, direction)
+            display_game.draw_ui(game_surface, font, buttons, mouse_pos, moves, solving)
 
             if is_won(grid):
                 # Superposer un voile sombre semi-transparent
-                overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+                overlay = pygame.Surface((game_surface.get_width(), game_surface.get_height()), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 120))
-                surface.blit(overlay, (0, 0))
+                game_surface.blit(overlay, (0, 0))
 
                 win_text = font_title.render("Bravo !", True, (255, 220, 50))
                 sub_text = font.render(f"{level_name} résolu en {moves} coups !", True, (255, 240, 200))
                 hint     = font.render("Entrée = niveau suivant", True, (200, 200, 200))
 
                 for surf, dy in [(win_text, -50), (sub_text, 20), (hint, 60)]:
-                    sx = (surface.get_width() - surf.get_width()) // 2
-                    sy = (surface.get_height() - surf.get_height()) // 2 + dy
-                    surface.blit(surf, (sx, sy))
+                    sx = (game_surface.get_width() - surf.get_width()) // 2
+                    sy = (game_surface.get_height() - surf.get_height()) // 2 + dy
+                    game_surface.blit(surf, (sx, sy))
 
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_RETURN]:
@@ -251,9 +253,15 @@ def main():
                     if next_level < level_count():
                         current_level = next_level
                         grid, level_name, difficulty, direction, history, moves = load_level(current_level)
-                        surface, buttons = display_game.resize_display(grid)
+                        game_surface, display_surface, scale, buttons = display_game.resize_display(grid)
                     else:
                         state = STATE_MENU
+
+        # ── Affichage : scale la surface interne vers la fenêtre puis flip ──
+        if scale < 1.0:
+            pygame.transform.scale(game_surface, display_surface.get_size(), display_surface)
+        else:
+            display_surface.blit(game_surface, (0, 0))
 
         pygame.display.flip()
         clock.tick(60)
