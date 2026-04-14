@@ -34,7 +34,6 @@ def move_player(grid, dr, dc):
         return grid
 
     new_grid = [row[:] for row in grid]
-
     target_cell = grid[nr][nc]
 
     if target_cell == BOX or target_cell == BOX_ON_TARGET:
@@ -50,34 +49,77 @@ def move_player(grid, dr, dc):
 
     return new_grid
 
-def main():
-    grid = [row[:] for row in test_grid]
-    direction = DOWN
+def is_won(grid):
+    for row in grid:
+        if BOX in row:
+            return False
+    return True
 
-    surface, sprites = display_game.init_display(grid)
-    clock = pygame.time.Clock()
+def main():
+    grid      = [row[:] for row in test_grid]
+    direction = DOWN
+    history   = []
+    moves     = 0
+
+    surface, sprites, font, buttons = display_game.init_display(grid)
+    clock   = pygame.time.Clock()
     running = True
 
     while running:
+        mouse_pos = pygame.mouse.get_pos()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
             elif event.type == pygame.KEYDOWN:
+                new_grid = grid
                 if event.key == pygame.K_DOWN:
                     direction = DOWN
-                    grid = move_player(grid, 1, 0)
+                    new_grid = move_player(grid, 1, 0)
                 elif event.key == pygame.K_UP:
                     direction = UP
-                    grid = move_player(grid, -1, 0)
+                    new_grid = move_player(grid, -1, 0)
                 elif event.key == pygame.K_LEFT:
                     direction = LEFT
-                    grid = move_player(grid, 0, -1)
+                    new_grid = move_player(grid, 0, -1)
                 elif event.key == pygame.K_RIGHT:
                     direction = RIGHT
-                    grid = move_player(grid, 0, 1)
+                    new_grid = move_player(grid, 0, 1)
+                elif event.key == pygame.K_z:
+                    if history:
+                        grid, direction, moves = history.pop()
+                    continue
+                elif event.key == pygame.K_r:
+                    history.clear()
+                    grid      = [row[:] for row in test_grid]
+                    direction = DOWN
+                    moves     = 0
+                    continue
+
+                if new_grid is not grid:
+                    history.append(([row[:] for row in grid], direction, moves))
+                    grid  = new_grid
+                    moves += 1
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if buttons["undo"].collidepoint(mouse_pos) and history:
+                    grid, direction, moves = history.pop()
+                elif buttons["reset"].collidepoint(mouse_pos):
+                    history.clear()
+                    grid      = [row[:] for row in test_grid]
+                    direction = DOWN
+                    moves     = 0
 
         display_game.draw_grid(surface, grid, sprites, direction)
+        display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
+
+        if is_won(grid):
+            win_text = font.render("Bravo ! Puzzle résolu !", True, (255, 220, 50))
+            wx = (surface.get_width() - win_text.get_width()) // 2
+            wy = (surface.get_height() - win_text.get_height()) // 2
+            surface.blit(win_text, (wx, wy))
+
         pygame.display.flip()
         clock.tick(60)
 

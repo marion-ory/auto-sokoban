@@ -11,6 +11,12 @@ SPRITE_SIZE = 16
 
 WINDOW_TITLE = "Auto Sokoban"
 
+UI_BAR_HEIGHT = 60
+BTN_COLOR         = (101, 67, 33)
+BTN_HOVER_COLOR   = (139, 90, 43)
+BTN_TEXT_COLOR    = (255, 240, 200)
+UI_BG_COLOR       = (62, 45, 25)
+
 # Positions des sprites dans les spritesheets (fichier, x, y)
 SPRITE_FLOOR     = ("assets/tileset_farm.png",  0,   0)
 SPRITE_WALL      = ("assets/tileset_farm.png",  64,  16)
