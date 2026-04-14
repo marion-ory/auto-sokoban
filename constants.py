@@ -21,12 +21,22 @@ MENU_BG_COLOR     = (80, 120, 50)
 MENU_TITLE_COLOR  = (255, 240, 180)
 MENU_SHADOW_COLOR = (40, 30, 10)
 
-MENU_WIDTH  = 7 * 64
-MENU_HEIGHT = 7 * 64 + 60
+MENU_WIDTH  = 520
+MENU_HEIGHT = 780
 
 # États du jeu
 STATE_MENU    = "menu"
+STATE_SELECT  = "select"
 STATE_PLAYING = "playing"
+
+DIFF_COLORS = {
+    "Facile":    (80, 160, 80),
+    "Moyen":     (200, 150, 40),
+    "Difficile": (180, 60, 60),
+}
+
+LEVELS_PER_PAGE = 8
+DIFFICULTIES    = ["Tous", "Facile", "Moyen", "Difficile"]
 
 # Positions des sprites dans les spritesheets (fichier, x, y)
 SPRITE_FLOOR     = ("assets/tileset_farm.png",  0,   0)

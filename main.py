@@ -2,16 +2,7 @@ import pygame
 import importlib
 display_game = importlib.import_module("display-game")
 from constants import *
-
-test_grid = [
-    [-1, -1, -1, -1, -1, -1, -1],
-    [-1,  0,  0,  1,  0,  0, -1],
-    [-1,  0,  2,  0,  0,  0, -1],
-    [-1,  0,  0,  3,  0,  0, -1],
-    [-1,  0,  0,  0,  4,  0, -1],
-    [-1,  0,  0,  0,  0,  0, -1],
-    [-1, -1, -1, -1, -1, -1, -1],
-]
+from levels import get_level, level_count, LEVELS
 
 def find_player(grid):
     for r, row in enumerate(grid):
@@ -55,12 +46,16 @@ def is_won(grid):
             return False
     return True
 
-def reset_game():
-    return [row[:] for row in test_grid], DOWN, [], 0
+def load_level(index):
+    grid, name, difficulty = get_level(index)
+    return grid, name, difficulty, DOWN, [], 0
 
 def main():
-    grid, direction, history, moves = reset_game()
-    state = STATE_MENU
+    current_level = 0
+    grid, level_name, difficulty, direction, history, moves = load_level(current_level)
+    state       = STATE_MENU
+    select_page = 0
+    select_diff = "Tous"
 
     surface, sprites, font, font_title, buttons = display_game.init_display(grid)
     clock   = pygame.time.Clock()
@@ -75,12 +70,45 @@ def main():
 
             elif state == STATE_MENU:
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    menu_buttons = display_game.draw_menu(surface, font_title, font, mouse_pos)
-                    if menu_buttons["play"].collidepoint(mouse_pos):
-                        grid, direction, history, moves = reset_game()
-                        state = STATE_PLAYING
-                    elif menu_buttons["quit"].collidepoint(mouse_pos):
+                    menu_btns = display_game.draw_menu(surface, font_title, font, mouse_pos)
+                    if menu_btns["play"].collidepoint(mouse_pos):
+                        surface = display_game.resize_to_menu(surface)
+                        state = STATE_SELECT
+                    elif menu_btns["quit"].collidepoint(mouse_pos):
                         running = False
+
+            elif state == STATE_SELECT:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    sel_btns = display_game.draw_level_select(
+                        surface, font_title, font, mouse_pos,
+                        LEVELS, select_page, select_diff
+                    )
+
+                    # Filtres
+                    for diff in DIFFICULTIES:
+                        if f"filter_{diff}" in sel_btns and sel_btns[f"filter_{diff}"].collidepoint(mouse_pos):
+                            select_diff = diff
+                            select_page = 0
+
+                    # Niveaux
+                    for slot in range(LEVELS_PER_PAGE):
+                        key = f"level_{slot}"
+                        if key in sel_btns:
+                            rect, real_idx = sel_btns[key]
+                            if rect.collidepoint(mouse_pos):
+                                current_level = real_idx
+                                grid, level_name, difficulty, direction, history, moves = load_level(current_level)
+                                surface, buttons = display_game.resize_display(grid)
+                                state = STATE_PLAYING
+
+                    # Pagination
+                    if "prev" in sel_btns and sel_btns["prev"].collidepoint(mouse_pos):
+                        select_page -= 1
+                    if "next" in sel_btns and sel_btns["next"].collidepoint(mouse_pos):
+                        select_page += 1
+                    if "back" in sel_btns and sel_btns["back"].collidepoint(mouse_pos):
+                        surface = display_game.resize_to_menu(surface)
+                        state = STATE_MENU
 
             elif state == STATE_PLAYING:
                 if event.type == pygame.KEYDOWN:
@@ -102,10 +130,11 @@ def main():
                             grid, direction, moves = history.pop()
                         continue
                     elif event.key == pygame.K_r:
-                        grid, direction, history, moves = reset_game()
+                        grid, level_name, difficulty, direction, history, moves = load_level(current_level)
                         continue
                     elif event.key == pygame.K_ESCAPE:
-                        state = STATE_MENU
+                        surface = display_game.resize_to_menu(surface)
+                        state = STATE_SELECT
                         continue
 
                     if new_grid is not grid:
@@ -117,24 +146,47 @@ def main():
                     if buttons["undo"].collidepoint(mouse_pos) and history:
                         grid, direction, moves = history.pop()
                     elif buttons["reset"].collidepoint(mouse_pos):
-                        grid, direction, history, moves = reset_game()
+                        grid, level_name, difficulty, direction, history, moves = load_level(current_level)
                     elif buttons["quit"].collidepoint(mouse_pos):
-                        state = STATE_MENU
+                        surface = display_game.resize_to_menu(surface)
+                        state = STATE_SELECT
 
         if state == STATE_MENU:
             display_game.draw_menu(surface, font_title, font, mouse_pos)
+
+        elif state == STATE_SELECT:
+            display_game.draw_level_select(
+                surface, font_title, font, mouse_pos,
+                LEVELS, select_page, select_diff
+            )
 
         elif state == STATE_PLAYING:
             display_game.draw_grid(surface, grid, sprites, direction)
             display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
 
             if is_won(grid):
+                overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 120))
+                surface.blit(overlay, (0, 0))
+
                 win_text = font_title.render("Bravo !", True, (255, 220, 50))
-                sub_text = font.render(f"Résolu en {moves} coups", True, (255, 240, 200))
-                wx = (surface.get_width() - win_text.get_width()) // 2
-                wy = (surface.get_height() - win_text.get_height()) // 2
-                surface.blit(win_text, (wx, wy))
-                surface.blit(sub_text, ((surface.get_width() - sub_text.get_width()) // 2, wy + win_text.get_height() + 5))
+                sub_text = font.render(f"{level_name} résolu en {moves} coups !", True, (255, 240, 200))
+                hint     = font.render("Entrée = niveau suivant", True, (200, 200, 200))
+
+                for surf, dy in [(win_text, -50), (sub_text, 20), (hint, 60)]:
+                    sx = (surface.get_width() - surf.get_width()) // 2
+                    sy = (surface.get_height() - surf.get_height()) // 2 + dy
+                    surface.blit(surf, (sx, sy))
+
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_RETURN]:
+                    next_level = current_level + 1
+                    if next_level < level_count():
+                        current_level = next_level
+                        grid, level_name, difficulty, direction, history, moves = load_level(current_level)
+                        surface, buttons = display_game.resize_display(grid)
+                    else:
+                        state = STATE_MENU
 
         pygame.display.flip()
         clock.tick(60)
