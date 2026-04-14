@@ -1,10 +1,12 @@
 import pygame
 import importlib
+# display-game.py contient un tiret, impossible à importer directement
 display_game = importlib.import_module("display-game")
 from constants import *
 from levels import get_level, level_count, LEVELS
 
 def find_player(grid):
+    # Parcourt la grille et retourne les coordonnées (ligne, colonne) du joueur
     for r, row in enumerate(grid):
         for c, cell in enumerate(row):
             if cell == PLAYER or cell == PLAYER_ON_TARGET:
@@ -12,35 +14,40 @@ def find_player(grid):
     return None
 
 def move_player(grid, dr, dc):
+    # dr/dc = direction : ex. (-1, 0) = haut, (0, 1) = droite
     pos = find_player(grid)
     if pos is None:
         return grid
 
     r, c = pos
-    nr, nc = r + dr, c + dc
+    nr, nc = r + dr, c + dc  # case cible du joueur
 
     if not (0 <= nr < len(grid) and 0 <= nc < len(grid[0])):
         return grid
     if grid[nr][nc] == WALL:
         return grid
 
+    # On travaille sur une copie pour ne pas modifier l'état actuel
     new_grid = [row[:] for row in grid]
     target_cell = grid[nr][nc]
 
+    # Si la case cible contient une caisse, on tente de la pousser
     if target_cell == BOX or target_cell == BOX_ON_TARGET:
-        br, bc = nr + dr, nc + dc
+        br, bc = nr + dr, nc + dc  # case derrière la caisse
         if not (0 <= br < len(grid) and 0 <= bc < len(grid[0])):
             return grid
         if grid[br][bc] == WALL or grid[br][bc] == BOX or grid[br][bc] == BOX_ON_TARGET:
-            return grid
+            return grid  # caisse bloquée, mouvement impossible
         new_grid[br][bc] = BOX_ON_TARGET if grid[br][bc] == TARGET else BOX
 
+    # Déplacer le joueur (en conservant la cible s'il était dessus)
     new_grid[nr][nc] = PLAYER_ON_TARGET if (target_cell == TARGET or target_cell == BOX_ON_TARGET) else PLAYER
     new_grid[r][c] = TARGET if grid[r][c] == PLAYER_ON_TARGET else EMPTY
 
     return new_grid
 
 def is_won(grid):
+    # Victoire = aucune caisse non posée (toutes les BOX ont disparu)
     for row in grid:
         if BOX in row:
             return False
@@ -48,11 +55,13 @@ def is_won(grid):
 
 def load_level(index):
     grid, name, difficulty = get_level(index)
-    return grid, name, difficulty, DOWN, [], 0
+    return grid, name, difficulty, DOWN, [], 0  # grille, nom, diff, direction, historique, coups
 
 def main():
     current_level = 0
     grid, level_name, difficulty, direction, history, moves = load_level(current_level)
+
+    # États du jeu : MENU → SELECT → PLAYING
     state       = STATE_MENU
     select_page = 0
     select_diff = "Tous"
@@ -84,13 +93,13 @@ def main():
                         LEVELS, select_page, select_diff
                     )
 
-                    # Filtres
+                    # Changer le filtre de difficulté et revenir à la page 0
                     for diff in DIFFICULTIES:
                         if f"filter_{diff}" in sel_btns and sel_btns[f"filter_{diff}"].collidepoint(mouse_pos):
                             select_diff = diff
                             select_page = 0
 
-                    # Niveaux
+                    # Lancer un niveau sélectionné
                     for slot in range(LEVELS_PER_PAGE):
                         key = f"level_{slot}"
                         if key in sel_btns:
@@ -101,7 +110,6 @@ def main():
                                 surface, buttons = display_game.resize_display(grid)
                                 state = STATE_PLAYING
 
-                    # Pagination
                     if "prev" in sel_btns and sel_btns["prev"].collidepoint(mouse_pos):
                         select_page -= 1
                     if "next" in sel_btns and sel_btns["next"].collidepoint(mouse_pos):
@@ -126,6 +134,7 @@ def main():
                         direction = RIGHT
                         new_grid = move_player(grid, 0, 1)
                     elif event.key == pygame.K_z:
+                        # Undo : restaure le dernier état sauvegardé
                         if history:
                             grid, direction, moves = history.pop()
                         continue
@@ -137,6 +146,7 @@ def main():
                         state = STATE_SELECT
                         continue
 
+                    # Si le mouvement a changé la grille, on sauvegarde l'état précédent
                     if new_grid is not grid:
                         history.append(([row[:] for row in grid], direction, moves))
                         grid  = new_grid
@@ -151,6 +161,7 @@ def main():
                         surface = display_game.resize_to_menu(surface)
                         state = STATE_SELECT
 
+        # ── Rendu selon l'état courant ──
         if state == STATE_MENU:
             display_game.draw_menu(surface, font_title, font, mouse_pos)
 
@@ -165,6 +176,7 @@ def main():
             display_game.draw_ui(surface, font, buttons, mouse_pos, moves)
 
             if is_won(grid):
+                # Superposer un voile sombre semi-transparent
                 overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 120))
                 surface.blit(overlay, (0, 0))
