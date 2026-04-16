@@ -5,7 +5,8 @@ map = []
 box = []
 player = []
 
-direction = {"Droite": (1, 0), "Gauche": (-1, 0), "Haut": (0, -1), "Bas": (0, 1)}
+
+direction = {"right": (1, 0), "left": (-1, 0), "up": (0, -1), "down": (0, 1)}
 # haut= -1 pour pygame
 
 
