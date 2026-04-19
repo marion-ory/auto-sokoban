@@ -187,16 +187,26 @@ def main():
                         solving, solution = cancel_solve(solving, solution)
                         surface = display_game.resize_to_menu(surface)
                         state = STATE_SELECT
-                    elif buttons["solve"].collidepoint(mouse_pos):
-                        if solving:
-                            # Stoppe l'animation en cours
-                            solving, solution = cancel_solve(solving, solution)
-                        else:
-                            result = build_game.solve(grid)
-                            if result:
-                                solution        = result
-                                solving         = True
-                                last_solve_time = pygame.time.get_ticks()
+                    
+                    # --- Nouveaux boutons de résolution ---
+                    for algo in ["dfs", "bfs", "astar"]:
+                        if buttons[algo].collidepoint(mouse_pos):
+                            if solving:
+                                # Stoppe l'animation, peu importe où on clique
+                                solving, solution = cancel_solve(solving, solution)
+                            else:
+                                # Lance l'algo correspondant
+                                if algo == "dfs":
+                                    result = build_game.solve_dfs(grid)
+                                elif algo == "bfs":
+                                    result = build_game.solve_bfs(grid)
+                                elif algo == "astar":
+                                    result = build_game.solve_astar(grid)
+                                    
+                                if result:
+                                    solution = result
+                                    solving = algo  # On assigne le nom de l'algo au lieu de True
+                                    last_solve_time = pygame.time.get_ticks()
 
         # ── Rendu selon l'état courant ──
         if state == STATE_MENU:

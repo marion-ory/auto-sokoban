@@ -99,21 +99,32 @@ def draw_ui(surface, font, buttons, mouse_pos, moves, solving=False):
     surface.blit(moves_text, (12, grid_height + (UI_BAR_HEIGHT - moves_text.get_height()) // 2))
 
     # Le bouton "Résoudre" devient "Stop" quand l'animation tourne
-    labels = {"quit": "Quitter", "undo": "Annuler", "reset": "Reset",
-              "solve": "Stop" if solving else "Résoudre"}
+    labels = {
+        "quit": "Quitter", "undo": "Annuler", "reset": "Reset",
+        "dfs": "Stop" if solving == "dfs" else "DFS",
+        "bfs": "Stop" if solving == "bfs" else "BFS",
+        "astar": "Stop" if solving == "astar" else "A*"
+    }
     for name, rect in buttons.items():
         draw_button(surface, rect, labels[name], font, rect.collidepoint(mouse_pos))
 
 def make_buttons(win_width, grid_height):
-    # Calcule les positions des 4 boutons alignés à droite de la barre UI
-    btn_w, btn_h = 90, 34
+    # Calcule les positions des 6 boutons alignés à droite de la barre UI
+    btn_w, btn_h = 75, 34
     margin = 8
     y = grid_height + (UI_BAR_HEIGHT - btn_h) // 2
-    quit_rect  = pygame.Rect(win_width - 4 * (btn_w + margin), y, btn_w, btn_h)
-    undo_rect  = pygame.Rect(win_width - 3 * (btn_w + margin), y, btn_w, btn_h)
-    reset_rect = pygame.Rect(win_width - 2 * (btn_w + margin), y, btn_w, btn_h)
-    solve_rect = pygame.Rect(win_width - (btn_w + margin),     y, btn_w, btn_h)
-    return {"quit": quit_rect, "undo": undo_rect, "reset": reset_rect, "solve": solve_rect}
+    
+    quit_rect  = pygame.Rect(win_width - 6 * (btn_w + margin), y, btn_w, btn_h)
+    undo_rect  = pygame.Rect(win_width - 5 * (btn_w + margin), y, btn_w, btn_h)
+    reset_rect = pygame.Rect(win_width - 4 * (btn_w + margin), y, btn_w, btn_h)
+    dfs_rect   = pygame.Rect(win_width - 3 * (btn_w + margin), y, btn_w, btn_h)
+    bfs_rect   = pygame.Rect(win_width - 2 * (btn_w + margin), y, btn_w, btn_h)
+    astar_rect = pygame.Rect(win_width - 1 * (btn_w + margin), y, btn_w, btn_h)
+    
+    return {
+        "quit": quit_rect, "undo": undo_rect, "reset": reset_rect,
+        "dfs": dfs_rect, "bfs": bfs_rect, "astar": astar_rect
+    }
 
 # ─── Écrans menu et sélection ─────────────────────────────────────────────────
 
@@ -239,7 +250,7 @@ def draw_menu(surface, font_title, font_btn, mouse_pos):
 
 # ─── Gestion de la fenêtre ────────────────────────────────────────────────────
 
-MIN_GAME_WIDTH = 4 * (90 + 8) + 160  # largeur minimale pour que la barre UI tienne (4 boutons + texte)
+MIN_GAME_WIDTH = 6 * (75 + 8) + 160  # largeur minimale pour que la barre UI tienne (6 boutons + texte)
 
 def resize_display(grid):
     # Redimensionne la fenêtre selon la taille de la grille courante
